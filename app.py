@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify, render_template
 import cv2, base64, re
 import numpy as np
-import torch
+from ultralytics import YOLO   # use Ultralytics package instead of torch.hub
 
 # Allow rendering index.html from project root
 app = Flask(__name__, template_folder='.')
 
-# Load YOLOv5 small model (fast)
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+# Load YOLOv5 small model (fast) – auto-downloads once and caches
+model = YOLO("yolov5s.pt")
 
 # Map YOLO labels into categories
 CATEGORY_MAP = {
@@ -41,27 +41,26 @@ def process_frame():
 
     # Detect objects
     results = model(frame)
-    detections = results.pandas().xyxy[0]
 
     warning_obj = None
     nearest_distance = None
 
     # Iterate over detections and pick the nearest relevant obstacle
-    for _, row in detections.iterrows():
-        label = row['name']
-        y1 = float(row['ymin'])
-        y2 = float(row['ymax'])
+    for r in results:
+        for box in r.boxes:
+            label = model.names[int(box.cls[0])]   # class name
+            y1, y2 = float(box.xyxy[0][1]), float(box.xyxy[0][3])
 
-        obj_type = CATEGORY_MAP.get(label, "obstacle")
+            obj_type = CATEGORY_MAP.get(label, "obstacle")
 
-        # Simple distance proxy from bounding box height (pixel → meter calibration needed)
-        box_h = max((y2 - y1), 1.0)
-        est_distance_m = round(1000.0 / box_h, 1)
+            # Simple distance proxy from bounding box height
+            box_h = max((y2 - y1), 1.0)
+            est_distance_m = round(1000.0 / box_h, 1)
 
-        if est_distance_m < 10:
-            if nearest_distance is None or est_distance_m < nearest_distance:
-                nearest_distance = est_distance_m
-                warning_obj = obj_type
+            if est_distance_m < 10:
+                if nearest_distance is None or est_distance_m < nearest_distance:
+                    nearest_distance = est_distance_m
+                    warning_obj = obj_type
 
     return jsonify({"object": warning_obj, "distance": nearest_distance})
 
