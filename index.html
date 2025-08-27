@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Obstacle Detection</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #6366f1;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 16px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; min-height: 100vh; align-items: center; justify-content: center;
+    }
+    .container { width: 100%; max-width: 720px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    h2 { margin: 0 0 12px; font-weight: 650; font-size: 20px; }
+    p.note { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    button.primary {
+      appearance: none; border: 1px solid var(--accent); background: var(--accent); color: white;
+      padding: 10px 14px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: none;
+    }
+    button.primary:disabled { opacity: .6; cursor: default; }
+    .switch { display: inline-flex; gap: 8px; align-items: center; background: #0b1220; border: 1px solid var(--border); padding: 8px 10px; border-radius: 10px; }
+    .switch input { width: 18px; height: 18px; }
+    .stage { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid var(--border); background: #0b0f1a; }
+    video { width: 100%; height: auto; display: block; }
+    canvas { display: none; }
+    .status {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      background: #0b1220; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 12px;
+    }
+    .badge { font-weight: 700; padding: 6px 10px; border-radius: 999px; font-size: 12px; letter-spacing: .3px; }
+    .badge.ok { background: rgba(16,185,129,0.15); color: var(--ok); border: 1px solid rgba(16,185,129,0.45); }
+    .badge.warn { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.45); }
+    .badge.danger { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.45); }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .muted { color: var(--muted); }
+    .reading { font-variant-numeric: tabular-nums; font-weight: 650; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h2>Assistive Obstacle Detection</h2>
+      <p class="note">Use your phone’s rear camera. Press Start and keep the page in focus.</p>
+      <div class="controls">
+        <button id="start" class="primary">Start camera</button>
+        <label class="switch"><input type="checkbox" id="toggle-speech" checked /> <span>Speech</span></label>
+        <label class="switch"><input type="checkbox" id="toggle-vibe" checked /> <span>Vibration</span></label>
+      </div>
+      <div class="stage">
+        <video id="video" autoplay playsinline width="640" height="480" style="background:#000"></video>
+        <canvas id="canvas" width="640" height="480"></canvas>
+      </div>
+      <div class="status" id="status">
+        <div class="row">
+          <span id="sev" class="badge ok">Ready</span>
+          <span id="label" class="muted">No obstacle</span>
+        </div>
+        <div class="row">
+          <span class="muted">Distance</span>
+          <span id="dist" class="reading">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('start');
+    const toggleSpeech = document.getElementById('toggle-speech');
+    const toggleVibe = document.getElementById('toggle-vibe');
+    const sev = document.getElementById('sev');
+    const label = document.getElementById('label');
+    const distEl = document.getElementById('dist');
+
+    // Ask for user gesture to enable mic/speech/vibration on mobile
+    let started = false;
+    startBtn.addEventListener('click', async () => {
+      if (started) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = stream;
+        started = true;
+        startBtn.disabled = true;
+        startBtn.textContent = 'Running...';
+      } catch (e) {
+        alert('Camera permission denied.');
+      }
+    });
+
+    function speak(text) {
+      if (!toggleSpeech.checked) return;
+      let utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utterance);
+    }
+
+    function vibrate(distance) {
+      if (!toggleVibe.checked || !('vibrate' in navigator)) return;
+      if (distance < 4) {
+        navigator.vibrate([600, 200, 600]);
+      } else if (distance < 10) {
+        navigator.vibrate([250, 150, 250]);
+      }
+    }
+
+    let lastSpokenAt = 0;
+    const SPEAK_COOLDOWN_MS = 3000;
+
+    function setStatus(detObj, detDist) {
+      if (!detObj || detDist == null) {
+        sev.textContent = 'Ready';
+        sev.className = 'badge ok';
+        label.textContent = 'No obstacle';
+        distEl.textContent = '—';
+        return;
+      }
+      label.textContent = `${detObj}`;
+      distEl.textContent = `${detDist} m`;
+      if (detDist < 4) { sev.textContent = 'Danger'; sev.className = 'badge danger'; }
+      else if (detDist < 10) { sev.textContent = 'Caution'; sev.className = 'badge warn'; }
+      else { sev.textContent = 'Clear'; sev.className = 'badge ok'; }
+    }
+
+    // Send frames with throttling
+    setInterval(() => {
+      if (!started || video.readyState < 2) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const frame = canvas.toDataURL('image/jpeg');
+
+      fetch('/process_frame', {
+        method: 'POST',
+        body: JSON.stringify({ image: frame }),
+        headers: { "Content-Type": "application/json" }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data) return;
+        const obj = data.object;
+        const dist = data.distance;
+        setStatus(obj, dist);
+        if (!obj || dist == null) return;
+
+        vibrate(dist);
+        if (dist < 4) {
+          const now = Date.now();
+          if (now - lastSpokenAt > SPEAK_COOLDOWN_MS) {
+            speak(`${obj} ahead at ${dist} meters`);
+            lastSpokenAt = now;
+          }
+        }
+      })
+      .catch(() => {});
+    }, 700);
+  </script>
+</body>
+</html>
