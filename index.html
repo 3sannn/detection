@@ -2,18 +2,21 @@
 <html>
 <head>
   <title>Obstacle Detection</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #111827;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --accent: #6366f1;
-      --ok: #10b981;
-      --warn: #f59e0b;
-      --danger: #ef4444;
-      --border: #1f2937;
+      --bg: #000000;
+      --card: #1a1a1a;
+      --text: #ffffff;
+      --muted: #888888;
+      --border: #333333;
+      --accent: #ffffff;
+      --ok: #ffffff;
+      --warn: #ffffff;
+      --danger: #ffffff;
     }
     * { box-sizing: border-box; }
     body {
@@ -21,32 +24,143 @@
       background: var(--bg); color: var(--text);
       display: flex; min-height: 100vh; align-items: center; justify-content: center;
     }
-    .container { width: 100%; max-width: 720px; }
+    .container { 
+      width: 100%; 
+      max-width: 720px;
+      padding: 0 10px;
+    }
+    @media (max-width: 480px) {
+      .container {
+        padding: 0 5px;
+      }
+      .card {
+        padding: 12px;
+        margin: 0;
+      }
+      h2 {
+        font-size: 20px;
+      }
+    }
     .card {
       background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.25);
     }
     h2 { margin: 0 0 12px; font-weight: 650; font-size: 20px; }
     p.note { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
-    .controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+        .controls { 
+      display: flex; 
+      gap: 12px; 
+      flex-wrap: wrap; 
+      margin-bottom: 16px;
+      justify-content: center;
+    }
+    @media (max-width: 480px) {
+      .controls {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .switch {
+        width: 100%;
+        justify-content: center;
+      }
+      button.primary {
+        width: 100%;
+        padding: 14px;
+      }
+    }
     button.primary {
-      appearance: none; border: 1px solid var(--accent); background: var(--accent); color: white;
-      padding: 10px 14px; border-radius: 10px; font-weight: 600; cursor: pointer; flex: none;
+      appearance: none; 
+      border: 2px solid var(--text); 
+      background: transparent; 
+      color: var(--text);
+      padding: 12px 20px; 
+      border-radius: 10px; 
+      font-weight: 600; 
+      cursor: pointer; 
+      flex: none;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+    }
+    button.primary:hover {
+      background: var(--text);
+      color: var(--bg);
     }
     button.primary:disabled { opacity: .6; cursor: default; }
     .switch { display: inline-flex; gap: 8px; align-items: center; background: #0b1220; border: 1px solid var(--border); padding: 8px 10px; border-radius: 10px; }
     .switch input { width: 18px; height: 18px; }
-    .stage { position: relative; overflow: hidden; border-radius: 10px; border: 1px solid var(--border); background: #0b0f1a; }
-    video { width: 100%; height: auto; display: block; }
-    canvas { display: none; }
+    .stage { 
+      position: relative; 
+      overflow: hidden; 
+      border-radius: 10px; 
+      border: 1px solid var(--border); 
+      background: #0b0f1a;
+      aspect-ratio: 16/9;
+    }
+    video { 
+      width: 100%; 
+      height: auto; 
+      display: block;
+    }
+    canvas { 
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
     .status {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      background: #0b1220; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 16px;
+    }
+    @media (max-width: 480px) {
+      .status {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+      }
+      .status .row {
+        width: 100%;
+        justify-content: center;
+      }
+      .badge {
+        font-size: 11px;
+        padding: 6px 10px;
+      }
+      .reading {
+        font-size: 16px;
+      }
     }
     .badge { font-weight: 700; padding: 6px 10px; border-radius: 999px; font-size: 12px; letter-spacing: .3px; }
-    .badge.ok { background: rgba(16,185,129,0.15); color: var(--ok); border: 1px solid rgba(16,185,129,0.45); }
-    .badge.warn { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.45); }
-    .badge.danger { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.45); }
+    .badge.ok { 
+      background: transparent;
+      color: var(--text); 
+      border: 2px solid var(--text);
+    }
+    .badge.warn { 
+      background: #ffffff;
+      color: #000000; 
+      border: none;
+    }
+    .badge.danger { 
+      background: #ffffff;
+      color: #000000;
+      border: none;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .muted { color: var(--muted); }
     .reading { font-variant-numeric: tabular-nums; font-weight: 650; }
@@ -63,8 +177,9 @@
         <label class="switch"><input type="checkbox" id="toggle-vibe" checked /> <span>Vibration</span></label>
       </div>
       <div class="stage">
-        <video id="video" autoplay playsinline width="640" height="480" style="background:#000"></video>
+        <video id="video" autoplay playsinline muted width="640" height="480" style="background:#000"></video>
         <canvas id="canvas" width="640" height="480"></canvas>
+        <div id="camera-error" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.8); color:white; padding:20px; border-radius:10px; text-align:center;"></div>
       </div>
       <div class="status" id="status">
         <div class="row">
@@ -79,95 +194,155 @@
     </div>
   </div>
 
-  <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const startBtn = document.getElementById('start');
-    const toggleSpeech = document.getElementById('toggle-speech');
-    const toggleVibe = document.getElementById('toggle-vibe');
-    const sev = document.getElementById('sev');
-    const label = document.getElementById('label');
-    const distEl = document.getElementById('dist');
+<script>
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const startBtn = document.getElementById('start');
+  const toggleSpeech = document.getElementById('toggle-speech');
+  const toggleVibe = document.getElementById('toggle-vibe');
+  const sev = document.getElementById('sev');
+  const label = document.getElementById('label');
+  const distEl = document.getElementById('dist');
 
-    // Ask for user gesture to enable mic/speech/vibration on mobile
-    let started = false;
-    startBtn.addEventListener('click', async () => {
-      if (started) return;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        video.srcObject = stream;
-        started = true;
-        startBtn.disabled = true;
-        startBtn.textContent = 'Running...';
-      } catch (e) {
-        alert('Camera permission denied.');
+  let started = false;
+
+  startBtn.addEventListener('click', async () => {
+    if (started) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: 1280, height: 720 }
+      });
+      video.srcObject = stream;
+      video.play();
+      started = true;
+      startBtn.disabled = true;
+      startBtn.textContent = 'Running...';
+    } catch (error) {
+      console.error('Camera error:', error);
+      alert('Camera access failed: ' + (error.message || 'Please check permissions'));
+    }
+  });
+
+  function speak(text) {
+    if (!toggleSpeech.checked) return;
+    let utterance = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(utterance);
+  }
+
+  function vibrate(distance) {
+    if (!toggleVibe.checked || !('vibrate' in navigator)) return;
+    if (distance < 4) navigator.vibrate([600, 200, 600]);
+    else if (distance < 10) navigator.vibrate([250, 150, 250]);
+  }
+
+  let lastSpokenAt = 0;
+  const SPEAK_COOLDOWN_MS = 3000;
+
+  function setStatus(detObj, detDist) {
+    if (!detObj || detDist == null) {
+      sev.textContent = 'Ready';
+      sev.className = 'badge ok';
+      label.textContent = 'No obstacle';
+      distEl.textContent = '—';
+      return;
+    }
+    label.textContent = `${detObj}`;
+    distEl.textContent = `${detDist} m`;
+    if (detDist < 4) { sev.textContent = 'Danger'; sev.className = 'badge danger'; }
+    else if (detDist < 10) { sev.textContent = 'Caution'; sev.className = 'badge warn'; }
+    else { sev.textContent = 'Clear'; sev.className = 'badge ok'; }
+  }
+
+  // Keep last few frames for smoothing
+  let lastDetections = [];
+  const maxHistoryFrames = 4;
+
+  function smoothDetections(newDetections) {
+    lastDetections.push(newDetections);
+    if (lastDetections.length > maxHistoryFrames) {
+      lastDetections.shift();
+    }
+    if (lastDetections.length === 0) return newDetections;
+
+    return newDetections.map(det => {
+      const similar = lastDetections.flatMap(f => f).filter(d => d.object === det.object);
+      if (similar.length > 0) {
+        const avgDistance = similar.reduce((s, d) => s + d.distance, 0) / similar.length;
+        const avgX1 = similar.reduce((s, d) => s + d.box.x1, 0) / similar.length;
+        const avgY1 = similar.reduce((s, d) => s + d.box.y1, 0) / similar.length;
+        const avgX2 = similar.reduce((s, d) => s + d.box.x2, 0) / similar.length;
+        const avgY2 = similar.reduce((s, d) => s + d.box.y2, 0) / similar.length;
+        return {
+          ...det,
+          distance: Math.round(avgDistance * 10) / 10,
+          box: { x1: avgX1, y1: avgY1, x2: avgX2, y2: avgY2 }
+        };
       }
+      return det;
     });
+  }
 
-    function speak(text) {
-      if (!toggleSpeech.checked) return;
-      let utterance = new SpeechSynthesisUtterance(text);
-      speechSynthesis.speak(utterance);
-    }
+  // Capture frames and send for detection
+  setInterval(() => {
+    if (!started || video.readyState < 2) return;
 
-    function vibrate(distance) {
-      if (!toggleVibe.checked || !('vibrate' in navigator)) return;
-      if (distance < 4) {
-        navigator.vibrate([600, 200, 600]);
-      } else if (distance < 10) {
-        navigator.vibrate([250, 150, 250]);
-      }
-    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
-    let lastSpokenAt = 0;
-    const SPEAK_COOLDOWN_MS = 3000;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const frame = canvas.toDataURL('image/jpeg');
 
-    function setStatus(detObj, detDist) {
-      if (!detObj || detDist == null) {
-        sev.textContent = 'Ready';
-        sev.className = 'badge ok';
-        label.textContent = 'No obstacle';
-        distEl.textContent = '—';
-        return;
-      }
-      label.textContent = `${detObj}`;
-      distEl.textContent = `${detDist} m`;
-      if (detDist < 4) { sev.textContent = 'Danger'; sev.className = 'badge danger'; }
-      else if (detDist < 10) { sev.textContent = 'Caution'; sev.className = 'badge warn'; }
-      else { sev.textContent = 'Clear'; sev.className = 'badge ok'; }
-    }
+    fetch('/process_frame', {
+      method: 'POST',
+      body: JSON.stringify({ image: frame }),
+      headers: { "Content-Type": "application/json" }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data || !data.detections) return;
 
-    // Send frames with throttling
-    setInterval(() => {
-      if (!started || video.readyState < 2) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const frame = canvas.toDataURL('image/jpeg');
 
-      fetch('/process_frame', {
-        method: 'POST',
-        body: JSON.stringify({ image: frame }),
-        headers: { "Content-Type": "application/json" }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (!data) return;
-        const obj = data.object;
-        const dist = data.distance;
-        setStatus(obj, dist);
-        if (!obj || dist == null) return;
+      if (data.detections.length > 0) {
+        const smoothedDetections = smoothDetections(data.detections);
+        let nearest = smoothedDetections[0];
 
-        vibrate(dist);
-        if (dist < 4) {
+        smoothedDetections.forEach(detection => {
+          if (detection.distance < nearest.distance) nearest = detection;
+
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = detection.distance < 4 ? '#ff0000' : '#00ff00';
+          ctx.strokeRect(detection.box.x1, detection.box.y1,
+                         detection.box.x2 - detection.box.x1,
+                         detection.box.y2 - detection.box.y1);
+
+          ctx.font = 'bold 16px Arial';
+          const label = `${detection.object} (${detection.distance}m)`;
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(detection.box.x1, detection.box.y1 - 22,
+                      ctx.measureText(label).width + 8, 20);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(label, detection.box.x1 + 4, detection.box.y1 - 6);
+        });
+
+        setStatus(nearest.object, nearest.distance);
+        vibrate(nearest.distance);
+
+        if (nearest.distance < 4) {
           const now = Date.now();
           if (now - lastSpokenAt > SPEAK_COOLDOWN_MS) {
-            speak(`${obj} ahead at ${dist} meters`);
+            speak(`${nearest.object} ahead at ${nearest.distance} meters`);
             lastSpokenAt = now;
           }
         }
-      })
-      .catch(() => {});
-    }, 700);
-  </script>
+      } else {
+        setStatus(null, null);
+      }
+    })
+    .catch(err => console.error('Detection error:', err));
+  }, 800); // small delay to reduce CPU load
+</script>
+
 </body>
 </html>
